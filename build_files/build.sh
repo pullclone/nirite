@@ -15,22 +15,33 @@ dnf5 -y remove plasma-workspace plasma-* kde-*
 # setup niri
 dnf5 -y install					\
 	niri						\
-	alacritty					\
+	kitty						\
 	gdm							\
+	quickshell					\
+	brightnessctl				\
+	gpu-screen-recorder			\
+	cliphist					\
+	matugen-git					\
+	cava						\
+	wlsunset					\
+	xdg-desktop-portal			\
 	xdg-desktop-portal-gtk		\
 	xdg-desktop-portal-gnome	\
+	python3						\
+	evolution-data-server		\
 	gnome-keyring				\
 	nautilus					\
-	mako						\
+	emacs						\
+	micro						\
 	fuzzel						\
-	waybar						\
-	swayidle					\
-	swaylock					\
+	kcolorscheme				\
+	noctalia-shell				\
 	polkit-kde					\
 	xwayland-satellite			\
-	swaybg
+	python3
 
-systemctl enable podman.socket
-systemctl --global add-wants niri.service mako.service
-systemctl --global add-wants niri.service swayidle.service
+systemctl enable podman.socketsystemctl
+loginctl enable-linger $USERNAME
+sudo -u $USERNAME systemctl --user daemon-reload
+sudo -u $USERNAME systemctl --user enable --now noctalia.service
 systemctl --global add-wants niri.service plasma-pokit-agent.service
