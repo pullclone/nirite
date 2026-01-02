@@ -16,15 +16,12 @@ dnf5 -y remove plasma-workspace plasma-* kde-* || true
 # -------------------------------
 # 3. Install packages
 # -------------------------------
+dn5 -y copr enable zhangyi6324/noctalia-shell
 dnf5 -y install \
     niri \
     kitty \
     gdm \
-    quickshell \
     brightnessctl \
-    gpu-screen-recorder \
-    cliphist \
-    matugen-git \
     cava \
     wlsunset \
     xdg-desktop-portal \
@@ -37,8 +34,6 @@ dnf5 -y install \
     emacs \
     micro \
     fuzzel \
-    kcolorscheme \
-    noctalia-shell \
     polkit-kde \
     xwayland-satellite
 
