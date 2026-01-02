@@ -16,7 +16,7 @@ dnf5 -y remove plasma-workspace plasma-* kde-* || true
 # -------------------------------
 # 3. Install packages
 # -------------------------------
-dn5 -y copr enable zhangyi6324/noctalia-shell
+dnf5 -y copr enable zhangyi6324/noctalia-shell
 dnf5 -y install \
     niri \
     kitty \
