@@ -123,6 +123,8 @@ Rule of thumb:
 - Define or tighten runtime guarantees:
   - `docs/ASSERTIONS.md`
 
+---
+
 ## 8) Component Runtime Map (Evolving)
 
 This section documents **intended runtime locations**.
