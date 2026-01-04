@@ -39,6 +39,7 @@ dnf5 -y install \
     xdg-desktop-portal \
     xdg-desktop-portal-gtk \
     xdg-desktop-portal-gnome \
+    shim-x64 \
     python3 \
     uv \
     evolution-data-server \
