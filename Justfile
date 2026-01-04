@@ -85,38 +85,6 @@ sudoif command *args:
     }
     sudoif {{ command }} {{ args }}
 
-# This Justfile recipe builds a container image using Podman.
-#
-# Arguments:
-#   $target_image - The tag you want to apply to the image (default: $image_name).
-#   $tag - The tag for the image (default: $default_tag).
-#
-# The script constructs the version string using the tag and the current date.
-# If the git working directory is clean, it also includes the short SHA of the current HEAD.
-#
-# just build $target_image $tag
-#
-# Example usage:
-#   just build aurora lts
-#
-# This will build an image 'aurora:lts' with DX and GDX enabled.
-#
-
-# Build the image using the specified parameters
-build $target_image=image_name $tag=default_tag:
-    #!/usr/bin/env bash
-
-    BUILD_ARGS=()
-    if [[ -z "$(git status -s)" ]]; then
-        BUILD_ARGS+=("--build-arg" "SHA_HEAD_SHORT=$(git rev-parse --short HEAD)")
-    fi
-
-    {{engine}} build \
-        "${BUILD_ARGS[@]}" \
-        --pull=newer \
-        --tag "${target_image}:${tag}" \
-        .
-
 # Command: _rootful_load_image
 # Description: This script checks if the current user is root or running under sudo. If not, it attempts to resolve the image tag using podman inspect.
 #              If the image is found, it loads it into rootful podman. If the image is not found, it pulls it from the repository.
@@ -332,22 +300,6 @@ fmt-shell:
     fi
     /usr/bin/find . -iname "*.sh" -type f -exec shfmt --write "{}" ';'
 
-[group('Lint')]
-lint-units:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if ! command -v systemd-analyze >/dev/null; then
-      echo "systemd-analyze not found; skipping unit verification"
-      exit 0
-    fi
-    if [ -d services ]; then
-      find services -type f -name "*.service" -print0 | xargs -0 -r -n1 systemd-analyze verify
-    fi
-
-[group('Lint')]
-lint: check lint-shell lint-units
-    @echo "Lint OK"
-
 # Verify systemd unit files if systemd-analyze is available
 [group('Lint')]
 lint-units:
@@ -367,8 +319,10 @@ lint: check lint-shell lint-units
     @echo "Lint OK"
 
 [group('Test')]
-test $target_image=("localhost/" + image_name) $tag=default_tag: && (test-assertions target_image tag)
-
+test $target_image=("localhost/" + image_name) $tag=default_tag:
+    just test-smoke "{{target_image}}" "{{tag}}"
+    just test-efi "{{target_image}}" "{{tag}}"
+    just test-assertions "{{target_image}}" "{{tag}}"
 
 [group('Test')]
 test-smoke $target_image=("localhost/" + image_name) $tag=default_tag:
@@ -404,16 +358,16 @@ test-assertions $target_image=("localhost/" + image_name) $tag=default_tag:
     set -euo pipefail
 
     echo "Checking image exists: ${target_image}:${tag}"
-    podman image inspect "${target_image}:${tag}" >/dev/null
+    {{engine}} image inspect "${target_image}:${tag}" >/dev/null
 
     echo "Asserting /usr/lib/systemd/user exists"
-    podman run --rm "${target_image}:${tag}" /bin/sh -lc 'test -d /usr/lib/systemd/user'
+    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc 'test -d /usr/lib/systemd/user'
 
     echo "Asserting required service unit present: plasma-polkit-agent.service"
-    podman run --rm "${target_image}:${tag}" /bin/sh -lc 'test -f /usr/lib/systemd/user/plasma-polkit-agent.service'
+    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc 'test -f /usr/lib/systemd/user/plasma-polkit-agent.service'
 
     echo "Asserting EFI roots (any_of) and vendor dirs exist"
-    podman run --rm "${target_image}:${tag}" /bin/sh -lc '\
+    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc '\
       ROOT=""; \
       if [ -d /usr/lib/ostree-boot/efi/EFI ]; then ROOT=/usr/lib/ostree-boot/efi/EFI; fi; \
       if [ -z "$ROOT" ] && [ -d /boot/efi/EFI ]; then ROOT=/boot/efi/EFI; fi; \
