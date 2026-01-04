@@ -23,7 +23,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     mkdir -p "${EFIROOT}/EFI/fedora" "${EFIROOT}/EFI/BOOT"; \
     \
     # Find shim (path varies across builds)
-    SHIM="$(find /usr/share/shim -type f -name 'shimx64.efi' | head -n1)"; \
+    SHIM="$(find /usr/share/shim /usr/lib/shim /usr/lib64/shim -type f -name 'shimx64.efi' 2>/dev/null | head -n1)"; \
     if [ -z "${SHIM}" ]; then \
       echo "ERROR: shimx64.efi not found under /usr/share/shim"; exit 1; \
     fi; \
