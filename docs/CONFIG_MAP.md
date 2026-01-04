@@ -122,3 +122,18 @@ Rule of thumb:
   - `disk_config/*.toml` (only when explicitly requested)
 - Define or tighten runtime guarantees:
   - `docs/ASSERTIONS.md`
+
+## 8) Component Runtime Map (Evolving)
+
+This section documents **intended runtime locations**.
+Values may be `TBD` until finalized.
+
+- niri
+  - binary: TBD
+  - config: TBD
+- noctalia-shell
+  - binary: TBD
+  - desktop file: TBD
+- fuzzel
+  - binary: TBD
+  - config: TBD
