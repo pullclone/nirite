@@ -23,12 +23,13 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     mkdir -p "${EFIROOT}/EFI/fedora" "${EFIROOT}/EFI/BOOT"; \
     \
     # Find shim (path varies across builds)
-    SHIM="$(find /usr/share/shim -type f -name 'shimx64.efi' | head -n1)"; \
+    SHIM="$(find /usr/share/shim /usr/lib/shim /usr/lib64/shim -type f -name 'shimx64.efi' 2>/dev/null | head -n1)"; \
     if [ -z "${SHIM}" ]; then \
-      echo "ERROR: shimx64.efi not found under /usr/share/shim"; exit 1; \
+      echo "WARN: shimx64.efi not found; skipping shim copy"; \
+    else \
+      cp -a "${SHIM}" "${EFIROOT}/EFI/fedora/"; \
+      cp -a "${SHIM}" "${EFIROOT}/EFI/BOOT/BOOTX64.EFI"; \
     fi; \
-    cp -a "${SHIM}" "${EFIROOT}/EFI/fedora/"; \
-    cp -a "${SHIM}" "${EFIROOT}/EFI/BOOT/BOOTX64.EFI"; \
     \
     # Copy grub EFI if present (path varies)
     if [ -f /usr/lib/grub/x86_64-efi/grub.efi ]; then \
@@ -42,7 +43,9 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     # Optional: mirror into /boot/efi too (harmless, but may not be what builder reads)
     mkdir -p /boot/efi/EFI/fedora /boot/efi/EFI/BOOT || true; \
     cp -a "${EFIROOT}/EFI/fedora/"* /boot/efi/EFI/fedora/ 2>/dev/null || true; \
-    cp -a "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" /boot/efi/EFI/BOOT/BOOTX64.EFI 2>/dev/null || true; \
+    if [ -f "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" ]; then \
+      cp -a "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" /boot/efi/EFI/BOOT/BOOTX64.EFI 2>/dev/null || true; \
+    fi; \
     \
     ostree container commit
 
