@@ -1,212 +1,124 @@
 # Nirite Configuration & Structure Map
 
-This document describes the **authoritative structure** of the Nirite repository
-and the **runtime guarantees** of the resulting image.
+This document is the authoritative map of:
+- repository layout
+- responsibility boundaries
+- build-time vs runtime boundary
 
-It exists to prevent ambiguity for:
-- human contributors
-- automated agents
-- CI validation
-
-This document answers:
-- Where things live in the repo
-- What gets installed into the final image
-- What is guaranteed to exist at runtime
-- What must NOT be modified unless explicitly instructed
+It intentionally avoids listing “must always be true” guarantees.
+For invariants and testable guarantees, see `docs/ASSERTIONS.md`.
 
 ---
 
-## 1. Repository Structure (Authoritative)
+## Relationship to ASSERTIONS.md
 
-### Root Directory
+- `CONFIG_MAP.md` answers **where things live** and **who owns what**.
+- `ASSERTIONS.md` answers **what must always be true in the final image** and **how we test it**.
+
+When you add new runtime behavior:
+1) wire it in the correct place (structure, here)
+2) add/adjust invariants (guarantees, in ASSERTIONS.md)
+
+---
+
+## 1) Repository Structure (Authoritative)
+
+### Root
 - `.github/`
-  - GitHub Actions workflows and repository automation
-- `.gitignore`
-  - Git ignore rules
+  - GitHub Actions workflows & automation
 - `Containerfile`
-  - Defines the container image build contract
-  - Invokes `build_files/build.sh`
-  - Copies `services/` into the final image
-  - Runs `bootc container lint`
+  - Image build contract:
+    - mounts build context (`build_files/`) as `/ctx`
+    - runs `/ctx/build.sh`
+    - copies `services/` into the final image
+    - runs `bootc container lint`
 - `Justfile`
-  - **Primary developer and agent interface**
-  - Defines build, lint, test, VM, and CI workflows
-- `LICENSE`
-  - Project license
+  - Primary interface for humans and agents (`just ci` is the golden path)
 - `README.md`
-  - High-level project overview
+  - Project overview
 - `artifacthub-repo.yml`
   - Artifact Hub metadata
 - `cosign.pub`
-  - Public key for verifying signed images
+  - Public key for signatures
+- `LICENSE`, `.gitignore`
 
 ---
 
-### build_files/
-- **Purpose:** Build-time assets and installer logic
-- **Important:** Contents are *not* present in the final image unless explicitly installed.
+## 2) Critical Boundary: Build-Time vs Runtime
 
-Files:
-- `build_files/build.sh`
-  - **Single authoritative installer**
-  - Responsible for:
-    - installing packages
-    - placing configuration files
-    - enabling or preparing runtime behavior
-
-Rule:
-> If a file or config matters at runtime, `build.sh` must explicitly place it.
-
----
-
-### services/
-- **Purpose:** systemd user service definitions shipped with the image
-
-Files:
-- `services/plasma-polkit-agent.service`
-  - Polkit agent service
-
-Behavior:
-- Entire directory is copied into:
-```
-
-/usr/lib/systemd/user/
-
-```
-- No other location is authoritative for shipped services
-
-Rules:
-- Services must pass `systemd-analyze verify`
-- Services must only reference paths that exist in the final image
-
----
-
-### disk_config/
-- **Purpose:** VM and ISO image layout configuration
-- **Not part of the base container runtime**
-
-Files:
-- `disk.toml`
-- `iso.toml`
-- `iso-gnome.toml`
-- `iso-kde.toml`
-
-Rules:
-- These files affect **only** VM / ISO output
-- They must NOT be modified unless explicitly requested
-- Changes here are considered higher risk
-
----
-
-### docs/
-- **Purpose:** Canonical project documentation
-
-Files:
-- `ASSERTIONS.md`
-- Defines runtime invariants and image guarantees
-- `CONFIG_MAP.md` (this file)
-- Defines structure, paths, and responsibility boundaries
-
----
-
-## 2. Build-Time vs Runtime Boundary (Critical)
-
-### Build-Time Only
+### Build-Time Inputs (not present at runtime unless installed)
 - `build_files/`
-- Build context mounts (`/ctx`)
-- Temporary files and caches
-- Any script logic not explicitly installing artifacts
+  - build-time scripts and assets
+  - mounted as `/ctx` during build
+  - **not copied** into the final image by default
 
-### Runtime (Final Image)
-- Files installed by `build.sh`
-- `/usr/lib/systemd/user/*.service`
-- OS files inherited from the Bazzite base image
-- EFI artifacts required by `bootc-image-builder`
+### Runtime Outputs (present in final image)
+- Anything explicitly installed into the image filesystem by `build_files/build.sh`
+- systemd user unit files copied from `services/` into:
+  - `/usr/lib/systemd/user/`
 
-Agents must never assume build-time paths exist at runtime.
-
----
-
-## 3. Runtime Path Guarantees
-
-The following paths are guaranteed to exist in the final image:
-
-### systemd User Services
-- `/usr/lib/systemd/user/`
-- Contains all shipped user service units
-- Includes:
-  - `plasma-polkit-agent.service`
-
-### EFI / bootc Compatibility
-At least one of the following exists:
-- `/usr/lib/ostree-boot/efi/EFI/`
-- `/boot/efi/EFI/`
-
-With vendor directories:
-- `EFI/fedora`
-- `EFI/BOOT`
-
-(Exact binaries may vary; see `ASSERTIONS.md`.)
+Rule of thumb:
+> If it matters at runtime, `build_files/build.sh` must install it into the final image.
 
 ---
 
-## 4. Services Guaranteed by the Image
+## 3) build_files/ (Installer Domain)
 
-### plasma-polkit-agent.service
-- Purpose:
-- Provides a Polkit authentication agent
-- Scope:
-- systemd **user** service
-- Source:
-- `services/plasma-polkit-agent.service`
-- Installation Path:
-```
+**Purpose:** the *only* supported installation mechanism.
 
-/usr/lib/systemd/user/plasma-polkit-agent.service
-
-```
-
-No other services are guaranteed unless documented in `ASSERTIONS.md`.
-
----
-
-## 5. Binaries & Packages (High-Level)
-
-The image includes binaries installed via:
-- the Bazzite base image
 - `build_files/build.sh`
+  - installs packages
+  - installs configs into final filesystem paths
+  - prepares runtime behavior
 
-Rules:
-- No assumptions should be made about binary paths unless documented
-- New runtime binaries must be:
-- installed by `build.sh`
-- documented in `ASSERTIONS.md` when relied upon
-
----
-
-## 6. Agent Rules (Summary)
-
-Agents working on this repo must:
-
-- Treat this file and `ASSERTIONS.md` as authoritative
-- Modify only:
-- `build_files/` for installation logic
-- `services/` for shipped services
-- `Containerfile` for build contract changes
-- Never modify `disk_config/` unless explicitly instructed
-- Never invent additional install paths or mechanisms
-- Update documentation when guarantees change
+**Constraints:**
+- Do not introduce parallel install mechanisms unless explicitly documented.
+- Do not assume anything under `build_files/` exists at runtime.
 
 ---
 
-## 7. Relationship to ASSERTIONS.md
+## 4) services/ (Runtime Wiring Domain)
 
-- `CONFIG_MAP.md` answers **where and how**
-- `ASSERTIONS.md` answers **what must always be true**
+**Purpose:** systemd *user* units shipped with the image.
 
-Changes that affect runtime guarantees must update both.
+- All `services/*.service` are copied into:
+  - `/usr/lib/systemd/user/`
 
-This document defines structure.
-`ASSERTIONS.md` defines invariants.
-Together they form the agent contract.
+**Constraints:**
+- Units must be syntactically valid (verify via `systemd-analyze verify` where available).
+- Units must not reference nonexistent runtime paths.
 
+---
+
+## 5) disk_config/ (VM / ISO Domain)
+
+**Purpose:** VM / ISO output layout configuration only.
+
+- `disk_config/*.toml` affects VM / ISO builds, not the base container runtime.
+
+**Policy:**
+- Do not modify `disk_config/` unless explicitly requested.
+
+---
+
+## 6) docs/ (Documentation Domain)
+
+- `docs/CONFIG_MAP.md` (this file)
+  - structure, boundaries, responsibilities
+- `docs/ASSERTIONS.md`
+  - runtime invariants + machine-checkable assertions + test contract
+
+---
+
+## 7) Quick “Where should I change X?” Guide
+
+- Add/modify packages or install configs:
+  - `build_files/build.sh` (and any build_files assets it installs)
+- Add/modify shipped user services:
+  - `services/*.service`
+- Change the build contract (mount/copy/commit/lint behavior):
+  - `Containerfile`
+- Change VM/ISO layout behavior:
+  - `disk_config/*.toml` (only when explicitly requested)
+- Define or tighten runtime guarantees:
+  - `docs/ASSERTIONS.md`
