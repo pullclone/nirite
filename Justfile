@@ -2,6 +2,23 @@ export image_name := env("IMAGE_NAME", "image-template") # output image name, us
 export default_tag := env("DEFAULT_TAG", "latest")
 export bib_image := env("BIB_IMAGE", "quay.io/centos-bootc/bootc-image-builder:latest")
 
+# Prefer podman; fall back to docker
+engine := if `command -v podman >/dev/null 2>&1; echo yes` == "yes" { "podman" } else { "docker" }
+
+[group('Utility')]
+bootstrap:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Engine: {{engine}}"
+    command -v just >/dev/null || { echo "Missing: just"; exit 1; }
+    command -v {{engine}} >/dev/null || { echo "Missing: podman or docker"; exit 1; }
+    command -v git >/dev/null || { echo "Missing: git"; exit 1; }
+    command -v jq >/dev/null || echo "Recommended: jq (used by _rootful_load_image)"
+    command -v shellcheck >/dev/null || echo "Recommended: shellcheck"
+    command -v shfmt >/dev/null || echo "Recommended: shfmt"
+    command -v systemd-analyze >/dev/null || echo "Optional: systemd-analyze (unit verification)"
+    echo "OK"
+
 alias build-vm := build-qcow2
 alias rebuild-vm := rebuild-qcow2
 alias run-vm := run-vm-qcow2
@@ -94,7 +111,7 @@ build $target_image=image_name $tag=default_tag:
         BUILD_ARGS+=("--build-arg" "SHA_HEAD_SHORT=$(git rev-parse --short HEAD)")
     fi
 
-    podman build \
+    {{engine}} build \
         "${BUILD_ARGS[@]}" \
         --pull=newer \
         --tag "${target_image}:${tag}" \
@@ -295,25 +312,50 @@ spawn-vm rebuild="0" type="qcow2" ram="6G":
 
 
 # Runs shell check on all Bash scripts
-lint:
+[group('Lint')]
+lint-shell:
     #!/usr/bin/env bash
-    set -eoux pipefail
-    # Check if shellcheck is installed
-    if ! command -v shellcheck &> /dev/null; then
-        echo "shellcheck could not be found. Please install it."
-        exit 1
-    fi
-    # Run shellcheck on all Bash scripts
+    set -euo pipefail
+    command -v shellcheck >/dev/null || { echo "shellcheck not found"; exit 1; }
     /usr/bin/find . -iname "*.sh" -type f -exec shellcheck "{}" ';'
 
 # Runs shfmt on all Bash scripts
-format:
+[group('Format')]
+fmt-shell:
     #!/usr/bin/env bash
-    set -eoux pipefail
-    # Check if shfmt is installed
-    if ! command -v shfmt &> /dev/null; then
-        echo "shellcheck could not be found. Please install it."
-        exit 1
-    fi
-    # Run shfmt on all Bash scripts
+    set -euo pipefail
+    command -v shfmt >/dev/null || { echo "shfmt not found"; exit 1; }
     /usr/bin/find . -iname "*.sh" -type f -exec shfmt --write "{}" ';'
+
+[group('Lint')]
+lint-units:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v systemd-analyze >/dev/null; then
+      echo "systemd-analyze not found; skipping unit verification"
+      exit 0
+    fi
+    if [ -d services ]; then
+      find services -type f -name "*.service" -print0 | xargs -0 -r -n1 systemd-analyze verify
+    fi
+
+[group('Lint')]
+lint: check lint-shell lint-units
+    @echo "Lint OK"
+
+[group('Test')]
+test-smoke $target_image=("localhost/" + image_name) $tag=default_tag:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{engine}} image inspect "${target_image}:${tag}" >/dev/null 2>&1 || {
+      echo "Image missing: ${target_image}:${tag} (run just build first)"
+      exit 1
+    }
+    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc 'echo ok'
+
+[group('Test')]
+test $target_image=("localhost/" + image_name) $tag=default_tag: && (test-smoke target_image tag)
+
+[group('CI')]
+ci $target_image=("localhost/" + image_name) $tag=default_tag: lint && (build target_image tag) && (test target_image tag)
+    @echo "CI OK"
