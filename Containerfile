@@ -44,13 +44,11 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
       echo "WARN: grub EFI binary not found; continuing"; \
     fi; \
     \
-    # Optional: mirror into /boot/efi too (harmless, but may not be what builder reads)
-    if [ "${EFIROOT}" != "/boot/efi" ]; then \
-      mkdir -p /boot/efi/EFI/fedora /boot/efi/EFI/BOOT || true; \
-      cp -a "${EFIROOT}/EFI/fedora/"* /boot/efi/EFI/fedora/ 2>/dev/null || true; \
-      if [ -f "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" ]; then \
-        cp -a "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" /boot/efi/EFI/BOOT/BOOTX64.EFI 2>/dev/null || true; \
-      fi; \
+    # Mirror into /boot/efi too for builder compatibility
+    mkdir -p /boot/efi/EFI/fedora /boot/efi/EFI/BOOT || true; \
+    cp -a "${EFIROOT}/EFI/fedora/"* /boot/efi/EFI/fedora/ 2>/dev/null || true; \
+    if [ -f "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" ]; then \
+      cp -a "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" /boot/efi/EFI/BOOT/BOOTX64.EFI 2>/dev/null || true; \
     fi; \
     \
     # Fix for bootc-image-builder: Populate EFI vendor directory so the builder detects 'fedora'
@@ -58,6 +56,16 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     cp /usr/share/shim/*/shimx64.efi /boot/efi/EFI/fedora/ 2>/dev/null || true; \
     cp /usr/lib/grub/x86_64-efi/grub.efi /boot/efi/EFI/fedora/grubx64.efi 2>/dev/null || true; \
     \
+    # Ensure the ostree commit EFI root is populated when writable
+    if [ -d /usr/lib/ostree-boot/efi/EFI ]; then \
+      mkdir -p /usr/lib/ostree-boot/efi/EFI/fedora /usr/lib/ostree-boot/efi/EFI/BOOT || true; \
+      cp -a /boot/efi/EFI/fedora/* /usr/lib/ostree-boot/efi/EFI/fedora/ 2>/dev/null || true; \
+      if [ -f /boot/efi/EFI/BOOT/BOOTX64.EFI ]; then \
+        cp -a /boot/efi/EFI/BOOT/BOOTX64.EFI /usr/lib/ostree-boot/efi/EFI/BOOT/BOOTX64.EFI 2>/dev/null || true; \
+      fi; \
+    fi
+
+RUN set -euo pipefail; \
     ostree container commit
 
 # Final image linting
