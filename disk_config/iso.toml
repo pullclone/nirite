@@ -1,2 +1,7 @@
 [customizations.installer]
 vendor = "fedora"
+
+[customizations.installer.product]
+name = "Bazzite"
+version = "43"
+vendor = "fedora"
