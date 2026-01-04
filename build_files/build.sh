@@ -40,7 +40,6 @@ dnf5 -y install \
     eza \
     inxi \
     rustup \
-    rustscan \
     iproute \
     mtr \
     trash-cli \
