@@ -53,6 +53,10 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
       fi; \
     fi; \
     \
+    # Fix for bootc-image-builder: Populate EFI vendor directory so the builder detects 'fedora'
+    RUN mkdir -p /boot/efi/EFI/fedora \
+        && cp /usr/share/shim/*/shimx64.efi /boot/efi/EFI/fedora/ \
+        && cp /usr/lib/grub/x86_64-efi/grub.efi /boot/efi/EFI/fedora/grubx64.efi || true
     ostree container commit
 
 # Final image linting
