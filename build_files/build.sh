@@ -10,22 +10,24 @@ dnf5 -y remove plasma-workspace plasma-* kde-* || true
 # -------------------------------
 # 2. Get Terra Mesa key
 # -------------------------------
+# Terra Mesa bootstrap: make the key available for dnf during build
+install -d /etc/pki/rpm-gpg
+curl -fsSL https://repos.fyralabs.com/terra43-mesa/key.asc \
+  -o /etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa
+
 dnf5 -y install terra-release
 
+# Also stage the key into /usr/etc for bootc-image-builder/osbuild depsolve
 install -d /usr/etc/pki/rpm-gpg
-curl -fsSL https://repos.fyralabs.com/terra43-mesa/key.asc \
-  -o /usr/etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa
+cp -f /etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa \
+  /usr/etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa
 
-# Patch any terra-mesa repo files to use /usr/etc instead of /etc
-# (works even if the repo filename changes)
-grep -RIl "terra-mesa" /etc/yum.repos.d 2>/dev/null | while read -r f; do
-  sed -i 's|file:///etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa|file:///usr/etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa|g' "$f"
-done
-
-# Also patch any file that references the key path directly
-grep -RIl "RPM-GPG-KEY-terra43-mesa" /etc/yum.repos.d 2>/dev/null | while read -r f; do
-  sed -i 's|file:///etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa|file:///usr/etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa|g' "$f"
-done
+# Patch repo definitions to use /usr/etc (helps ISO build tooling that doesn't merge /usr/etc -> /etc)
+if [ -d /etc/yum.repos.d ]; then
+  sed -i \
+    's|file:///etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa|file:///usr/etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa|g' \
+    /etc/yum.repos.d/*.repo || true
+fi
 
 # -------------------------------
 # 2. Install packages
