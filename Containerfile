@@ -18,9 +18,13 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     set -euo pipefail; \
     \
     # --- START FIX FOR BOOTC-IMAGE-BUILDER ---
-    # Prefer committed ostree boot payload location
+    # Prefer committed ostree boot payload location (fall back if /usr is read-only)
     EFIROOT="/usr/lib/ostree-boot/efi"; \
-    mkdir -p "${EFIROOT}/EFI/fedora" "${EFIROOT}/EFI/BOOT"; \
+    if ! mkdir -p "${EFIROOT}/EFI/fedora" "${EFIROOT}/EFI/BOOT" 2>/dev/null; then \
+      echo "WARN: ${EFIROOT} not writable; using /boot/efi"; \
+      EFIROOT="/boot/efi"; \
+      mkdir -p "${EFIROOT}/EFI/fedora" "${EFIROOT}/EFI/BOOT"; \
+    fi; \
     \
     # Find shim (path varies across builds)
     SHIM="$(find /usr/share/shim /usr/lib/shim /usr/lib64/shim -type f -name 'shimx64.efi' 2>/dev/null | head -n1)"; \
@@ -41,10 +45,12 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     fi; \
     \
     # Optional: mirror into /boot/efi too (harmless, but may not be what builder reads)
-    mkdir -p /boot/efi/EFI/fedora /boot/efi/EFI/BOOT || true; \
-    cp -a "${EFIROOT}/EFI/fedora/"* /boot/efi/EFI/fedora/ 2>/dev/null || true; \
-    if [ -f "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" ]; then \
-      cp -a "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" /boot/efi/EFI/BOOT/BOOTX64.EFI 2>/dev/null || true; \
+    if [ "${EFIROOT}" != "/boot/efi" ]; then \
+      mkdir -p /boot/efi/EFI/fedora /boot/efi/EFI/BOOT || true; \
+      cp -a "${EFIROOT}/EFI/fedora/"* /boot/efi/EFI/fedora/ 2>/dev/null || true; \
+      if [ -f "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" ]; then \
+        cp -a "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" /boot/efi/EFI/BOOT/BOOTX64.EFI 2>/dev/null || true; \
+      fi; \
     fi; \
     \
     ostree container commit
