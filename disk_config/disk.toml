@@ -1,3 +1,11 @@
 [[customizations.filesystem]]
 mountpoint = "/"
 minsize = "20 GiB"
+
+[customizations.installer]
+vendor = "fedora"
+
+[customizations.installer.product]
+name = "Bazzite"
+version = "43"
+vendor = "fedora"
