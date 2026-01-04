@@ -180,3 +180,44 @@ evolution_rules:
 
 * Tighten assertions over time; avoid weakening them.
 * Any new runtime guarantee should eventually appear in the machine-checkable section.
+
+---
+
+## 10. Component Assertion Checklist (Incremental)
+
+The following assertions are **planned**.
+They may be non-strict until paths and configs are finalized.
+
+Agents should consult this list before adding new behavior.
+
+### Desktop Stack
+
+- [ ] niri
+  - binary expected at: TBD
+  - version check: `niri --version`
+- [ ] noctalia-shell
+  - binary expected at: TBD
+  - desktop file expected at: TBD
+- [ ] fuzzel
+  - binary expected at: TBD
+  - config expected at: TBD
+
+### Configuration Placement
+
+- [ ] Default configs installed into system paths
+  - `/usr/share/...` or `/etc/...`
+- [ ] No reliance on `$HOME` at build time
+- [ ] All configs installed explicitly by `build_files/build.sh`
+
+### Services
+
+- [x] plasma-polkit-agent.service
+  - installed to `/usr/lib/systemd/user`
+  - verified by `systemd-analyze verify`
+
+### Filesystem Sanity
+
+- [x] Image starts a shell
+- [x] Required system directories exist
+- [ ] No unexpected files left in `/`
+- [ ] No build-only artifacts leaked into runtime
