@@ -1,4 +1,2 @@
 [customizations.installer]
-
-[customizations.installer.iso]
 vendor = "fedora"
