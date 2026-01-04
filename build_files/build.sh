@@ -35,12 +35,9 @@ dnf5 -y install \
     evolution-data-server \
     gnome-keyring \
     noctalia-shell \
-    docker-compose \
-    docker-cli \
     docker-buildkit \
     docker-buildx \
     docker-distribution \
-    docker-compose-switch \
     eza \
     inxi \
     rustup \
