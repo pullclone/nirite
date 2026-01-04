@@ -1,17 +1,15 @@
-# Allow build scripts to be referenced without being copied into the final image
+# Allow referencing build scripts without copying into image
 FROM scratch AS ctx
 COPY build_files /
 
-# Base Image
+# Bazzite image
 FROM ghcr.io/ublue-os/bazzite-dx:stable
 
-# Universal Blue Images: https://github.com/orgs/ublue-os/packages
+# Universal Blue images: https://github.com/orgs/ublue-os/packages
 
 COPY services /usr/lib/systemd/user/
 
-### MODIFICATIONS
-## make modifications desired in your image and install packages by modifying the build.sh script
-## the following RUN directive does all the things required to run "build.sh" as recommended.
+# Modifications to to packages via build.sh script 
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
@@ -19,7 +17,6 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build.sh && \
     ostree container commit
-    
-### LINTING
-## Verify final image and contents are correct.
+
+# Final image linting
 RUN bootc container lint
