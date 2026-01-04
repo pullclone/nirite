@@ -14,6 +14,7 @@ dnf5 -y copr enable zhangyi6324/noctalia-shell
 dnf5 -y copr enable varlad/macchina
 dnf5 -y copr enable clarlok/lost
 dnf5 -y install \
+    terra-release \
     niri \
     kitty \
     gdm \
