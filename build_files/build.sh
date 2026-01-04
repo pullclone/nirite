@@ -22,7 +22,6 @@ if [ -f /etc/yum.repos.d/terra-mesa.repo ]; then
   sed -i 's/^enabled=1/enabled=0/' /etc/yum.repos.d/terra-mesa.repo
 fi
 
-
 # -------------------------------
 # 2. Install packages
 # -------------------------------
