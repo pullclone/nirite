@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          # just + lint tools (adjust as needed)
+          sudo apt-get install -y just shellcheck shfmt jq
+          # podman is the preferred engine for uBlue-style builds
+          sudo apt-get install -y podman
+
+      - name: Show tooling versions
+        run: |
+          just --version
+          podman --version
+          shellcheck --version || true
+          shfmt --version || true
+          jq --version || true
+
+      - name: Run repo CI (authoritative)
+        env:
+          IMAGE_NAME: nirite
+          DEFAULT_TAG: ci
+        run: |
+          just ci
