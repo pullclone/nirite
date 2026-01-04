@@ -1,17 +1,18 @@
-export image_name := env("IMAGE_NAME", "image-template") # output image name, usually same as repo name, change as needed
+export image_name := env("IMAGE_NAME", "image-template")
 export default_tag := env("DEFAULT_TAG", "latest")
 export bib_image := env("BIB_IMAGE", "quay.io/centos-bootc/bootc-image-builder:latest")
 
 # Prefer podman; fall back to docker
+
 engine := if `command -v podman >/dev/null 2>&1; echo yes` == "yes" { "podman" } else { "docker" }
 
 [group('Utility')]
 bootstrap:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Engine: {{engine}}"
+    echo "Engine: {{ engine }}"
     command -v just >/dev/null || { echo "Missing: just"; exit 1; }
-    command -v {{engine}} >/dev/null || { echo "Missing: podman or docker"; exit 1; }
+    command -v {{ engine }} >/dev/null || { echo "Missing: podman or docker"; exit 1; }
     command -v git >/dev/null || { echo "Missing: git"; exit 1; }
     command -v jq >/dev/null || echo "Recommended: jq (used by _rootful_load_image)"
     command -v shellcheck >/dev/null || echo "Recommended: shellcheck"
@@ -320,22 +321,22 @@ lint: check lint-shell lint-units
 
 [group('Test')]
 test $target_image=("localhost/" + image_name) $tag=default_tag:
-    just test-smoke "{{target_image}}" "{{tag}}"
-    just test-efi "{{target_image}}" "{{tag}}"
-    just test-assertions "{{target_image}}" "{{tag}}"
+    just test-smoke "{{ target_image }}" "{{ tag }}"
+    just test-efi "{{ target_image }}" "{{ tag }}"
+    just test-assertions "{{ target_image }}" "{{ tag }}"
 
 [group('Test')]
 test-smoke $target_image=("localhost/" + image_name) $tag=default_tag:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    {{engine}} image inspect "${target_image}:${tag}" >/dev/null
+    {{ engine }} image inspect "${target_image}:${tag}" >/dev/null
 
     # container runs
-    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc 'echo ok'
+    {{ engine }} run --rm "${target_image}:${tag}" /bin/sh -lc 'echo ok'
 
     # services copied in (this matches: COPY services /usr/lib/systemd/user/)
-    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc '\
+    {{ engine }} run --rm "${target_image}:${tag}" /bin/sh -lc '\
       test -d /usr/lib/systemd/user && \
       ls -1 /usr/lib/systemd/user >/dev/null \
     '
@@ -345,7 +346,7 @@ test-efi $target_image=("localhost/" + image_name) $tag=default_tag:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc '\
+    {{ engine }} run --rm "${target_image}:${tag}" /bin/sh -lc '\
       (test -d /usr/lib/ostree-boot/efi/EFI/fedora && test -d /usr/lib/ostree-boot/efi/EFI/BOOT) || true; \
       (test -d /boot/efi/EFI/fedora && test -d /boot/efi/EFI/BOOT) || true; \
       echo "efi dirs ok (presence checked)" \
@@ -358,16 +359,16 @@ test-assertions $target_image=("localhost/" + image_name) $tag=default_tag:
     set -euo pipefail
 
     echo "Checking image exists: ${target_image}:${tag}"
-    {{engine}} image inspect "${target_image}:${tag}" >/dev/null
+    {{ engine }} image inspect "${target_image}:${tag}" >/dev/null
 
     echo "Asserting /usr/lib/systemd/user exists"
-    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc 'test -d /usr/lib/systemd/user'
+    {{ engine }} run --rm "${target_image}:${tag}" /bin/sh -lc 'test -d /usr/lib/systemd/user'
 
     echo "Asserting required service unit present: plasma-polkit-agent.service"
-    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc 'test -f /usr/lib/systemd/user/plasma-polkit-agent.service'
+    {{ engine }} run --rm "${target_image}:${tag}" /bin/sh -lc 'test -f /usr/lib/systemd/user/plasma-polkit-agent.service'
 
     echo "Asserting EFI roots (any_of) and vendor dirs exist"
-    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc '\
+    {{ engine }} run --rm "${target_image}:${tag}" /bin/sh -lc '\
       ROOT=""; \
       if [ -d /usr/lib/ostree-boot/efi/EFI ]; then ROOT=/usr/lib/ostree-boot/efi/EFI; fi; \
       if [ -z "$ROOT" ] && [ -d /boot/efi/EFI ]; then ROOT=/boot/efi/EFI; fi; \
@@ -388,11 +389,11 @@ build $target_image=("localhost/" + image_name) $tag=default_tag:
         BUILD_ARGS+=("--build-arg" "SHA_HEAD_SHORT=$(git rev-parse --short HEAD)")
     fi
 
-    if [[ "{{engine}}" == "docker" ]]; then
+    if [[ "{{ engine }}" == "docker" ]]; then
       export DOCKER_BUILDKIT=1
     fi
 
-    {{engine}} build \
+    {{ engine }} build \
         "${BUILD_ARGS[@]}" \
         --pull \
         --tag "${target_image}:${tag}" \
@@ -401,6 +402,6 @@ build $target_image=("localhost/" + image_name) $tag=default_tag:
 [group('CI')]
 ci $target_image=("localhost/" + image_name) $tag=default_tag:
     just lint
-    just build "{{target_image}}" "{{tag}}"
-    just test "{{target_image}}" "{{tag}}"
+    just build "{{ target_image }}" "{{ tag }}"
+    just test "{{ target_image }}" "{{ tag }}"
     @echo "CI OK"
