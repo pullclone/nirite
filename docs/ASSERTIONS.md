@@ -1,136 +1,182 @@
 # Nirite Image Assertions
 
-This document defines **invariants** for the Nirite image.
-If any assertion here becomes false, the image is considered broken.
+This document defines **runtime invariants** for the Nirite image:
+what must always be true in the final image and how we validate it.
 
-These assertions are intended to be:
-- human-readable
-- agent-readable
-- incrementally enforceable via `just test`
-
-They describe *what the image guarantees*, not how it is built.
+It intentionally avoids duplicating repository layout details.
+For repo structure and responsibility boundaries, see `docs/CONFIG_MAP.md`.
 
 ---
 
-## 1. Build & Image-Level Assertions
+## Relationship to CONFIG_MAP.md
 
-These must be true for every successful build:
+- `CONFIG_MAP.md` answers **where things live** and **who owns what**.
+- `ASSERTIONS.md` answers **what must always be true** in the *final image*.
+
+If you change:
+- installer logic → update assertions that depend on installed artifacts
+- services → update assertions about shipped units
+- build contract → update build/lint assertions and CI expectations
+
+---
+
+## 1) Core Build Contract Invariants
+
+A valid build must satisfy:
 
 - The image builds successfully from `Containerfile`.
-- `ostree container commit` completes successfully during build.
-- `bootc container lint` passes in the final image stage.
-- The resulting image can:
-  - be inspected (`podman image inspect …`)
-  - start a container and execute `/bin/sh`
+- The build performs `ostree container commit`.
+- The final stage runs and passes `bootc container lint`.
+- The resulting image can be started and execute `/bin/sh`.
 
 ---
 
-## 2. Installer Model Assertions (build_files)
+## 2) Installer Model Invariants
 
-- `build_files/` contents are **not present** in the final image by default.
-- All files, configs, or binaries originating from `build_files/` must be:
-  - explicitly installed into the image filesystem by `build_files/build.sh`
-- `build_files/build.sh` is the **only** supported installation mechanism.
-- No parallel installation paths (e.g. ad-hoc `RUN dnf install …`) are allowed unless explicitly documented.
+- `build_files/` is build-time input only.
+- No runtime file/config/binary may be “assumed” to exist unless installed into the final filesystem by `build_files/build.sh`.
 
-Rule of thumb:
-> If it matters at runtime, it must be placed there by `build.sh`.
+(For the boundary and file locations, see `docs/CONFIG_MAP.md`.)
 
 ---
 
-## 3. systemd User Services Assertions
+## 3) Shipped systemd User Services Invariants
 
-- All systemd user services shipped by Nirite:
-  - originate from `services/*.service`
-  - are copied into the image at:
-    ```
-    /usr/lib/systemd/user/
-    ```
-- Unit files must:
-  - pass `systemd-analyze verify`
-  - not reference paths that are not present in the final image
-- No unit files are generated dynamically at runtime unless explicitly documented.
+- Shipped user units must be present under:
+  - `/usr/lib/systemd/user/`
+- Unit files must be syntactically valid (`systemd-analyze verify` where available).
+- Unit files must not reference missing runtime paths.
 
 ---
 
-## 4. EFI / bootc Image Builder Assertions
+## 4) EFI / bootc-image-builder Compatibility Invariants
 
-The image must satisfy `bootc-image-builder` expectations:
+The image must satisfy bootc-image-builder expectations:
 
-- At least one of the following EFI directory trees exists:
-  - `/usr/lib/ostree-boot/efi/EFI/`
-  - `/boot/efi/EFI/`
-- The following vendor directories must exist:
-  - `EFI/fedora`
-  - `EFI/BOOT`
-- The build attempts to populate:
-  - `BOOTX64.EFI` (shim)
-  - `grubx64.efi` (grub)
-- Absence of shim/grub binaries is tolerated **only if** the build logs explicitly warn and continue.
+- At least one EFI directory tree exists:
+  - `/usr/lib/ostree-boot/efi/EFI/` OR `/boot/efi/EFI/`
+- Vendor directories exist:
+  - `EFI/fedora` and `EFI/BOOT`
 
-These assertions exist to prevent silent regressions in VM / ISO builds.
+This exists to prevent silent regressions in VM/ISO builds.
 
 ---
 
-## 5. Desktop Stack Presence (High-Level)
+## 5) Desktop Stack Invariants (Initial / Non-Strict)
 
 Nirite is expected to ship a Wayland desktop stack including:
-
-- niri (Wayland compositor)
+- niri
 - noctalia-shell
-- fuzzel (launcher)
+- fuzzel
 
-At minimum:
-- binaries must exist in the final image
-- versions must be queryable (e.g. `--version`)
+At minimum (for now):
+- binaries should be present and version-queryable (`--version`) once paths are stabilized
 
-**Exact paths and configs may vary and should be tightened over time.**
-
----
-
-## 6. Configuration Assertions (Initial, Non-Strict)
-
-- Default configs, if provided, must be placed in documented system locations
-  (e.g. `/usr/share/…`, `/etc/…`)
-- No assumptions are made about `$HOME` or per-user state at image build time.
-- Any default configuration paths introduced must be documented here.
+These are intentionally non-strict until canonical paths are confirmed.
 
 ---
 
-## 7. disk_config Invariants
+## 6) disk_config Policy Invariant
 
-- `disk_config/*.toml` files:
-  - define VM / ISO output layout only
-  - must not affect the base container image
-- These files must not be modified unless explicitly requested.
+- `disk_config/` is VM/ISO-only and must not be modified unless explicitly requested.
+(Structure and intent are defined in `docs/CONFIG_MAP.md`.)
 
 ---
 
-## 8. Testing Contract
+## 7) Testing Contract
 
-The following commands are considered authoritative:
+Authoritative command:
+- `just ci`
 
-- Local validation:
-- just ci
-- `ci` must include:
-- linting (scripts + unit files)
-- image build
-- smoke tests verifying these assertions
+Expected meaning:
+- `just lint && just build && just test`
 
-If an assertion cannot yet be tested automatically:
-- it must still be listed here
-- and tightened in a future change
+No change is considered complete unless `just ci` succeeds (or a failure is explicitly explained and approved).
 
 ---
 
-## 9. Change Discipline
+## 8) Machine-Checkable Assertions (Authoritative)
 
-When modifying the image:
-- Update this document **if and only if** the guarantees change.
-- Prefer tightening assertions over weakening them.
-- Every new runtime guarantee should eventually appear here.
+The following structured assertions are intended to be consumed by automation
+(`just test`, CI, and agent tooling). This section is authoritative.
 
-This document is the contract between:
-- the image
-- its maintainers
-- and any automated agent working on the repo.
+build_contract:
+  containerfile:
+    required: true
+    runs:
+      - ostree container commit
+      - bootc container lint
+  installer:
+    path: build_files/build.sh
+    exclusive: true
+
+runtime_paths:
+  must_exist:
+    - /usr/lib/systemd/user
+  efi_roots:
+    any_of:
+      - /usr/lib/ostree-boot/efi/EFI
+      - /boot/efi/EFI
+  efi_vendors:
+    must_exist:
+      - fedora
+      - BOOT
+
+systemd_user_services:
+  source_dir: services
+  install_dir: /usr/lib/systemd/user
+  services:
+    - name: plasma-polkit-agent.service
+      required: true
+      scope: user
+  constraints:
+    verify_with: systemd-analyze verify
+    forbid_missing_paths: true
+
+binaries:
+  required_present:
+    - name: niri
+      strict: false
+    - name: noctalia-shell
+      strict: false
+    - name: fuzzel
+      strict: false
+
+disk_config:
+  path: disk_config
+  scope: vm_iso_only
+  mutation_policy: forbidden_unless_explicit
+
+testing_contract:
+  authoritative_command: just ci
+  ci_definition:
+    - just lint
+    - just build
+    - just test
+  completion_rule: "No change is complete unless just ci succeeds."
+
+agent_constraints:
+  must_read:
+    - AGENTS.md
+    - docs/ASSERTIONS.md
+    - docs/CONFIG_MAP.md
+  forbidden_actions:
+    - modify disk_config without explicit instruction
+    - introduce parallel install mechanisms
+    - assume build_files contents exist at runtime
+  preferred_interface: just
+
+evolution_rules:
+  allowed:
+    - tighten assertions
+    - add new assertions
+  discouraged:
+    - weakening existing assertions
+  requirement: "Runtime guarantee changes must update this section."
+
+---
+
+## 9) Change Discipline
+
+* Tighten assertions over time; avoid weakening them.
+* Any new runtime guarantee should eventually appear in the machine-checkable section.
