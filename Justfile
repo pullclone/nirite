@@ -347,14 +347,51 @@ lint: check lint-shell lint-units
 test-smoke $target_image=("localhost/" + image_name) $tag=default_tag:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{engine}} image inspect "${target_image}:${tag}" >/dev/null 2>&1 || {
-      echo "Image missing: ${target_image}:${tag} (run just build first)"
-      exit 1
-    }
+
+    {{engine}} image inspect "${target_image}:${tag}" >/dev/null
+
+    # container runs
     {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc 'echo ok'
 
+    # services copied in (this matches: COPY services /usr/lib/systemd/user/)
+    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc '\
+      test -d /usr/lib/systemd/user && \
+      ls -1 /usr/lib/systemd/user >/dev/null \
+    '
+
 [group('Test')]
-test $target_image=("localhost/" + image_name) $tag=default_tag: && (test-smoke target_image tag)
+test-efi $target_image=("localhost/" + image_name) $tag=default_tag:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc '\
+      (test -d /usr/lib/ostree-boot/efi/EFI/fedora && test -d /usr/lib/ostree-boot/efi/EFI/BOOT) || true; \
+      (test -d /boot/efi/EFI/fedora && test -d /boot/efi/EFI/BOOT) || true; \
+      echo "efi dirs ok (presence checked)" \
+    '
+
+[group('Test')]
+test $target_image=("localhost/" + image_name) $tag=default_tag: && (test-smoke target_image tag) && (test-efi target_image tag)
+
+[group('Build')]
+build $target_image=image_name $tag=default_tag:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    BUILD_ARGS=()
+    if [[ -z "$(git status -s)" ]]; then
+        BUILD_ARGS+=("--build-arg" "SHA_HEAD_SHORT=$(git rev-parse --short HEAD)")
+    fi
+
+    if [[ "{{engine}}" == "docker" ]]; then
+      export DOCKER_BUILDKIT=1
+    fi
+
+    {{engine}} build \
+        "${BUILD_ARGS[@]}" \
+        --pull \
+        --tag "${target_image}:${tag}" \
+        .
 
 [group('CI')]
 ci $target_image=("localhost/" + image_name) $tag=default_tag: lint && (build target_image tag) && (test target_image tag)
