@@ -310,13 +310,15 @@ spawn-vm rebuild="0" type="qcow2" ram="6G":
       --vsock=false --pass-ssh-key=false \
       -i ./output/**/*.{{ type }}
 
-
-# Runs shell check on all Bash scripts
+# Runs shellcheck on all Bash scripts
 [group('Lint')]
 lint-shell:
     #!/usr/bin/env bash
     set -euo pipefail
-    command -v shellcheck >/dev/null || { echo "shellcheck not found"; exit 1; }
+    if ! command -v shellcheck >/dev/null 2>&1; then
+        echo "shellcheck could not be found. Please install it."
+        exit 1
+    fi
     /usr/bin/find . -iname "*.sh" -type f -exec shellcheck "{}" ';'
 
 # Runs shfmt on all Bash scripts
@@ -324,7 +326,10 @@ lint-shell:
 fmt-shell:
     #!/usr/bin/env bash
     set -euo pipefail
-    command -v shfmt >/dev/null || { echo "shfmt not found"; exit 1; }
+    if ! command -v shfmt >/dev/null 2>&1; then
+        echo "shfmt could not be found. Please install it."
+        exit 1
+    fi
     /usr/bin/find . -iname "*.sh" -type f -exec shfmt --write "{}" ';'
 
 [group('Lint')]
@@ -342,6 +347,28 @@ lint-units:
 [group('Lint')]
 lint: check lint-shell lint-units
     @echo "Lint OK"
+
+# Verify systemd unit files if systemd-analyze is available
+[group('Lint')]
+lint-units:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v systemd-analyze >/dev/null 2>&1; then
+        echo "systemd-analyze not available; skipping unit verification"
+        exit 0
+    fi
+    if [ -d services ]; then
+        find services -type f -name "*.service" -print0 | xargs -0 -r -n1 systemd-analyze verify
+    fi
+
+# Meta lint target (authoritative)
+[group('Lint')]
+lint: check lint-shell lint-units
+    @echo "Lint OK"
+
+[group('Test')]
+test $target_image=("localhost/" + image_name) $tag=default_tag: && (test-assertions target_image tag)
+
 
 [group('Test')]
 test-smoke $target_image=("localhost/" + image_name) $tag=default_tag:
@@ -370,11 +397,35 @@ test-efi $target_image=("localhost/" + image_name) $tag=default_tag:
       echo "efi dirs ok (presence checked)" \
     '
 
+# Validate runtime invariants from docs/ASSERTIONS.md (without parsing YAML yet)
 [group('Test')]
-test $target_image=("localhost/" + image_name) $tag=default_tag: && (test-smoke target_image tag) && (test-efi target_image tag)
+test-assertions $target_image=("localhost/" + image_name) $tag=default_tag:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "Checking image exists: ${target_image}:${tag}"
+    podman image inspect "${target_image}:${tag}" >/dev/null
+
+    echo "Asserting /usr/lib/systemd/user exists"
+    podman run --rm "${target_image}:${tag}" /bin/sh -lc 'test -d /usr/lib/systemd/user'
+
+    echo "Asserting required service unit present: plasma-polkit-agent.service"
+    podman run --rm "${target_image}:${tag}" /bin/sh -lc 'test -f /usr/lib/systemd/user/plasma-polkit-agent.service'
+
+    echo "Asserting EFI roots (any_of) and vendor dirs exist"
+    podman run --rm "${target_image}:${tag}" /bin/sh -lc '\
+      ROOT=""; \
+      if [ -d /usr/lib/ostree-boot/efi/EFI ]; then ROOT=/usr/lib/ostree-boot/efi/EFI; fi; \
+      if [ -z "$ROOT" ] && [ -d /boot/efi/EFI ]; then ROOT=/boot/efi/EFI; fi; \
+      [ -n "$ROOT" ] || { echo "Missing EFI root (expected /usr/lib/ostree-boot/efi/EFI or /boot/efi/EFI)"; exit 1; }; \
+      test -d "$ROOT/fedora" || { echo "Missing vendor dir: $ROOT/fedora"; exit 1; }; \
+      test -d "$ROOT/BOOT"   || { echo "Missing vendor dir: $ROOT/BOOT"; exit 1; }; \
+    '
+
+    echo "Runtime assertions OK"
 
 [group('Build')]
-build $target_image=image_name $tag=default_tag:
+build $target_image=("localhost/" + image_name) $tag=default_tag:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -394,5 +445,8 @@ build $target_image=image_name $tag=default_tag:
         .
 
 [group('CI')]
-ci $target_image=("localhost/" + image_name) $tag=default_tag: lint && (build target_image tag) && (test target_image tag)
+ci $target_image=("localhost/" + image_name) $tag=default_tag:
+    just lint
+    just build "{{target_image}}" "{{tag}}"
+    just test "{{target_image}}" "{{tag}}"
     @echo "CI OK"
