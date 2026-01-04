@@ -32,6 +32,19 @@ Goal: stay close to upstream Bazzite while adding the niri + desktop stack.
 - Use `just` recipes for build/test/lint if present.
 - If no recipe exists, propose adding one rather than ad-hoc commands.
 
+## Build truth (authoritative)
+- build_files/build.sh runs during image build via /ctx mount.
+  - build_files/ is NOT copied into the final image.
+  - Therefore: any config assets must be explicitly installed into the image filesystem by build.sh.
+- services/ is copied into /usr/lib/systemd/user/ in the final image.
+- After build.sh, we run: `ostree container commit`
+- Final image is validated by: `bootc container lint` (runs in Containerfile)
+
+Agent rules:
+- If you need to change packages/config: edit build_files/build.sh (and any assets under build_files/) and ensure build.sh installs them into final locations.
+- If you need to add/modify services: edit services/*.service and verify they land in /usr/lib/systemd/user/.
+- Never assume configs in ~/.config inside the image unless build.sh explicitly creates defaults.
+
 ## Testing expectations
 - Provide a local build path (container build) and CI path (GitHub Actions) if available.
 - For config-only changes: include a fast validation (syntax checks, unit file checks, etc).
