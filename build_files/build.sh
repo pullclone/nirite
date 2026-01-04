@@ -36,7 +36,6 @@ dnf5 -y install \
     gnome-keyring \
     noctalia-shell \
     docker-buildkit \
-    docker-buildx \
     docker-distribution \
     eza \
     inxi \
