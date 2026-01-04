@@ -5,7 +5,7 @@ set -ouex pipefail
 # -------------------------------
 # 1. Define user
 # -------------------------------
-USER="yourusername"
+USER="dmail"
 USER_HOME="/home/$USER"
 
 # -------------------------------
