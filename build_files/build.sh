@@ -27,7 +27,6 @@ grep -RIl "RPM-GPG-KEY-terra43-mesa" /etc/yum.repos.d 2>/dev/null | while read -
   sed -i 's|file:///etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa|file:///usr/etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa|g' "$f"
 done
 
-
 # -------------------------------
 # 2. Install packages
 # -------------------------------
