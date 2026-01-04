@@ -10,23 +10,16 @@ dnf5 -y remove plasma-workspace plasma-* kde-* || true
 # -------------------------------
 # 2. Get Terra Mesa key
 # -------------------------------
-# Terra Mesa bootstrap: make the key available for dnf during build
+# Terra mesa key (only needed if terra-mesa repo is enabled)
 install -d /etc/pki/rpm-gpg
 curl -fsSL https://repos.fyralabs.com/terra43-mesa/key.asc \
   -o /etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa
 
 dnf5 -y install terra-release
 
-# Also stage the key into /usr/etc for bootc-image-builder/osbuild depsolve
-install -d /usr/etc/pki/rpm-gpg
-cp -f /etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa \
-  /usr/etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa
-
-# Patch repo definitions to use /usr/etc (helps ISO build tooling that doesn't merge /usr/etc -> /etc)
-if [ -d /etc/yum.repos.d ]; then
-  sed -i \
-    's|file:///etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa|file:///usr/etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa|g' \
-    /etc/yum.repos.d/*.repo || true
+# Disable terra-mesa to keep ISO build reproducible (re-enable later only if needed)
+if [ -f /etc/yum.repos.d/terra-mesa.repo ]; then
+  sed -i 's/^enabled=1/enabled=0/' /etc/yum.repos.d/terra-mesa.repo
 fi
 
 # -------------------------------
@@ -79,3 +72,9 @@ dnf5 -y install \
 # 3. Enable system services
 # -------------------------------
 systemctl enable podman.socket
+
+# -------------------------------
+# 4. Cleanup
+# -------------------------------
+dnf5 clean all
+rm -rf /var/lib/dnf
