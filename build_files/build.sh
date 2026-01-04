@@ -8,6 +8,13 @@ set -ouex pipefail
 dnf5 -y remove plasma-workspace plasma-* kde-* || true
 
 # -------------------------------
+# 2. Get Terra Mesa key
+# -------------------------------
+install -d /etc/pki/rpm-gpg
+curl -fsSL https://repos.fyralabs.com/terra43-mesa/key.asc \
+  -o /etc/pki/rpm-gpg/RPM-GPG-KEY-terra43-mesa
+
+# -------------------------------
 # 2. Install packages
 # -------------------------------
 dnf5 -y copr enable zhangyi6324/noctalia-shell
