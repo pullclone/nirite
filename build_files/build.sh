@@ -3,18 +3,12 @@
 set -ouex pipefail
 
 # -------------------------------
-# 1. Define user
-# -------------------------------
-USER="dmail"
-USER_HOME="/home/$USER"
-
-# -------------------------------
-# 2. Remove KDE if present
+# 1. Remove KDE if present
 # -------------------------------
 dnf5 -y remove plasma-workspace plasma-* kde-* || true
 
 # -------------------------------
-# 3. Install packages
+# 2. Install packages
 # -------------------------------
 dnf5 -y copr enable zhangyi6324/noctalia-shell
 dnf5 -y copr enable varlad/macchina
@@ -60,6 +54,6 @@ dnf5 -y install \
     xwayland-satellite
 
 # -------------------------------
-# 4. Enable system services
+# 3. Enable system services
 # -------------------------------
 systemctl enable podman.socket
