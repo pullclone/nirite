@@ -301,18 +301,27 @@ fmt-shell:
     fi
     /usr/bin/find . -iname "*.sh" -type f -exec shfmt --write "{}" ';'
 
-# Verify systemd unit files if systemd-analyze is available
 [group('Lint')]
-lint-units:
+lint-units $target_image=("localhost/" + image_name) $tag=default_tag:
     #!/usr/bin/env bash
     set -euo pipefail
-    if ! command -v systemd-analyze >/dev/null 2>&1; then
-        echo "systemd-analyze not available; skipping unit verification"
-        exit 0
-    fi
-    if [ -d services ]; then
-        find services -type f -name "*.service" -print0 | xargs -0 -r -n1 systemd-analyze verify
-    fi
+
+    # If systemd-analyze isn't available on the host, we still verify inside the image.
+    # Ensure the image exists (build if missing).
+    {{engine}} image inspect "${target_image}:${tag}" >/dev/null 2>&1 || just build "{{target_image}}" "{{tag}}"
+
+    # Verify units in the image filesystem where ExecStart should exist
+    {{engine}} run --rm "${target_image}:${tag}" /bin/sh -lc '\
+      if ! command -v systemd-analyze >/dev/null 2>&1; then \
+        echo "systemd-analyze not present in image; skipping unit verification"; \
+        exit 0; \
+      fi; \
+      if [ -d /usr/lib/systemd/user ]; then \
+        find /usr/lib/systemd/user -type f -name "*.service" -print0 | xargs -0 -r -n1 systemd-analyze verify; \
+      else \
+        echo "No /usr/lib/systemd/user in image; skipping"; \
+      fi \
+    '
 
 # Meta lint target (authoritative)
 [group('Lint')]
