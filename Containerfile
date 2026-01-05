@@ -27,7 +27,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     fi; \
     \
     # Find shim (path varies across builds)
-    SHIM="$(find /usr/share/shim /usr/lib/shim /usr/lib64/shim -type f -name 'shimx64.efi' 2>/dev/null | head -n1)"; \
+    SHIM="$(find /usr/share/shim /usr/lib/shim /usr/lib64/shim -type f -name 'shimx64.efi' -print -quit 2>/dev/null || true)"; \
     if [ -z "${SHIM}" ]; then \
       echo "WARN: shimx64.efi not found; skipping shim copy"; \
     else \
