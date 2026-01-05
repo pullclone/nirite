@@ -325,7 +325,10 @@ lint-units $target_image=("localhost/" + image_name) $tag=default_tag:
 
 # Meta lint target (authoritative)
 [group('Lint')]
-lint: check lint-shell lint-units
+lint:
+    @just check || { echo "Run: just fix"; exit 1; }
+    @just lint-shell
+    @just lint-units
     @echo "Lint OK"
 
 [group('Test')]
