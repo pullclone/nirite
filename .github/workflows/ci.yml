@@ -1,6 +1,7 @@
 name: Repo CI (just ci)
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [ main ]
   push:
@@ -34,6 +35,24 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y podman jq shellcheck shfmt
+
+      - name: Configure podman storage
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /mnt/containers/storage
+          sudo chown -R "$USER:$USER" /mnt/containers
+          mkdir -p ~/.config/containers
+          cat > ~/.config/containers/storage.conf <<'EOF'
+          [storage]
+          driver = "overlay"
+          graphroot = "/mnt/containers/storage"
+          runroot = "/tmp/containers-run"
+          EOF
+          mkdir -p /tmp/containers-run
+
+      - name: Report podman storage
+        run: |
+          podman info
 
       - name: Normalize env (match repo conventions)
         run: |

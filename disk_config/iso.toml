@@ -1,7 +1,1 @@
-[customizations.installer]
-vendor = "fedora"
-
-[customizations.installer.product]
-name = "Bazzite"
-version = "43"
-vendor = "fedora"
+# Intentionally empty: installer metadata removed for bootc-image-builder compatibility.
