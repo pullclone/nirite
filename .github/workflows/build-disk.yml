@@ -93,12 +93,17 @@ jobs:
           osbuild_dir="${GITHUB_WORKSPACE}/.osbuild"
           var_tmp_dir="${GITHUB_WORKSPACE}/.var_tmp"
           graphroot="${GITHUB_WORKSPACE}/.containers/storage"
+          containers_conf="${GITHUB_WORKSPACE}/containers.conf"
           sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}"
           sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}"
           sudo umount /var/lib/containers/storage || true
           sudo rm -rf /var/lib/containers/storage
           sudo mkdir -p /var/lib/containers/storage
           sudo mount --bind "${graphroot}" /var/lib/containers/storage
+          cat > "${containers_conf}" <<EOF
+          [engine]
+          events_logger = "none"
+          EOF
 
           config_file="./disk_config/disk.toml"
           extra_args="--use-librepo=True --rootfs btrfs"
@@ -106,7 +111,8 @@ jobs:
             config_file="./disk_config/iso.toml"
           fi
 
-          sudo podman pull "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
+          sudo CONTAINERS_CONF="${containers_conf}" \
+            podman pull "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
 
           sudo podman run --rm --privileged \
             --security-opt label=type:unconfined_t \
@@ -115,6 +121,7 @@ jobs:
             --volume "${var_tmp_dir}:/var/tmp" \
             --volume ./output:/output \
             --volume "${config_file}:/config.toml:ro" \
+            --volume "${containers_conf}:/etc/containers/containers.conf:ro" \
             quay.io/centos-bootc/bootc-image-builder:latest build \
             --output /output \
             --chown "${{ env.USER_UID }}:${{ env.USER_GID }}" \
