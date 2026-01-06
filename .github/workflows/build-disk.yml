@@ -76,23 +76,43 @@ jobs:
       - name: Mount BTRFS for podman storage
         if: inputs.platform != 'arm64'
         uses: ublue-os/container-storage-action@main
+        env:
+          BTRFS_TARGET_DIR: /var/lib/containers/storage
 
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
       - name: Build disk images
         id: build
-        uses: osbuild/bootc-image-builder-action@v0.0.2
-        with:
-          config-file: ${{ matrix.disk-type == 'anaconda-iso'
-            && './disk_config/iso.toml'
-            || './disk_config/disk.toml' }}
-          image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}
-          chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
-          types: ${{ matrix.disk-type }}
-          additional-args: ${{ matrix.disk-type == 'anaconda-iso'
-            && '--use-librepo=True --rootfs btrfs'
-            || '--use-librepo=True --rootfs btrfs' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -rf ./output
+          mkdir -p ./output
+          sudo rm -rf /mnt/osbuild /mnt/var_tmp
+          sudo mkdir -p /mnt/osbuild /mnt/var_tmp
+
+          config_file="./disk_config/disk.toml"
+          extra_args="--use-librepo=True --rootfs btrfs"
+          if [[ "${{ matrix.disk-type }}" == "anaconda-iso" ]]; then
+            config_file="./disk_config/iso.toml"
+          fi
+
+          sudo podman run --rm --privileged \
+            --security-opt label=type:unconfined_t \
+            --volume /var/lib/containers/storage:/var/lib/containers/storage \
+            --volume /mnt/osbuild:/run/osbuild \
+            --volume /mnt/var_tmp:/var/tmp \
+            --volume ./output:/output \
+            --volume "${config_file}:/config.toml:ro" \
+            quay.io/centos-bootc/bootc-image-builder:latest build \
+            --output /output \
+            --chown "${{ env.USER_UID }}:${{ env.USER_GID }}" \
+            ${extra_args} \
+            --type "${{ matrix.disk-type }}" \
+            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
+
+          echo "output-directory=$(pwd)/output" >> "$GITHUB_OUTPUT"
 
           
       - name: Upload disk images and Checksum to Job Artifacts
