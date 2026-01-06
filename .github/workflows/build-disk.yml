@@ -58,11 +58,6 @@ jobs:
           echo "DISK_TYPE=${DISK_TYPE}" >> ${GITHUB_ENV}
           echo "USER_UID=${USER_UID}" >> ${GITHUB_ENV}
           echo "USER_GID=${USER_GID}" >> ${GITHUB_ENV}
-          CONFIG_FILE="./disk_config/disk.toml"
-          if [[ "${{ matrix.disk-type }}" == "anaconda-iso" ]]; then
-            CONFIG_FILE="./disk_config/iso.toml"
-          fi
-          echo "CONFIG_FILE=${CONFIG_FILE}" >> ${GITHUB_ENV}
 
       - name: Install dependencies
         if: inputs.platform == 'arm64'
@@ -88,24 +83,63 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
-      - name: Configure podman defaults
+      - name: Build disk images
+        id: build
+        shell: bash
         run: |
-          sudo mkdir -p /etc/containers
-          cat <<'EOF' | sudo tee /etc/containers/containers.conf
+          set -euo pipefail
+          sudo rm -rf ./output
+          mkdir -p ./output
+          osbuild_dir="${GITHUB_WORKSPACE}/.osbuild"
+          var_tmp_dir="${GITHUB_WORKSPACE}/.var_tmp"
+          graphroot="${GITHUB_WORKSPACE}/.containers/storage"
+          containers_conf="${GITHUB_WORKSPACE}/containers.conf"
+          run_libpod_dir="${GITHUB_WORKSPACE}/.run/libpod"
+          run_containers_storage_dir="${GITHUB_WORKSPACE}/.run/containers/storage"
+          run_crun_dir="${GITHUB_WORKSPACE}/.run/crun"
+          osbuild_store_dir="${GITHUB_WORKSPACE}/.osbuild-store"
+          osbuild_rpmmd_dir="${GITHUB_WORKSPACE}/.osbuild-rpmmd"
+          sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
+          sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
+          sudo umount /var/lib/containers/storage || true
+          sudo rm -rf /var/lib/containers/storage
+          sudo mkdir -p /var/lib/containers/storage
+          sudo mount --bind "${graphroot}" /var/lib/containers/storage
+          cat > "${containers_conf}" <<EOF
           [engine]
           events_logger = "none"
           EOF
 
-      - name: Build disk images
-        id: build
-        uses: osbuild/bootc-image-builder-action@019bb59c5100ecec4e78c9e94e18a840110f7a0b # v0.0.2
-        with:
-          config-file: ${{ env.CONFIG_FILE }}
-          image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}
-          rootfs: btrfs
-          additional-args: --use-librepo=True
-          types: ${{ matrix.disk-type }}
-          chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
+          config_file="./disk_config/disk.toml"
+          extra_args="--use-librepo=True --rootfs btrfs"
+          if [[ "${{ matrix.disk-type }}" == "anaconda-iso" ]]; then
+            config_file="./disk_config/iso.toml"
+          fi
+
+          sudo CONTAINERS_CONF="${containers_conf}" \
+            podman pull "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
+
+          sudo podman run --rm --privileged \
+            --security-opt label=type:unconfined_t \
+            --volume "${graphroot}:/var/lib/containers/storage" \
+            --volume "${osbuild_dir}:/run/osbuild" \
+            --volume "${var_tmp_dir}:/var/tmp" \
+            --volume "${run_libpod_dir}:/run/libpod" \
+            --volume "${run_containers_storage_dir}:/run/containers/storage" \
+            --volume "${run_crun_dir}:/run/crun" \
+            --volume "${osbuild_store_dir}:/store" \
+            --volume "${osbuild_rpmmd_dir}:/rpmmd" \
+            --volume ./output:/output \
+            --volume "${config_file}:/config.toml:ro" \
+            --volume "${containers_conf}:/etc/containers/containers.conf:ro" \
+            quay.io/centos-bootc/bootc-image-builder:latest build \
+            --output /output \
+            --chown "${{ env.USER_UID }}:${{ env.USER_GID }}" \
+            ${extra_args} \
+            --type "${{ matrix.disk-type }}" \
+            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
+
+          echo "output-directory=$(pwd)/output" >> "$GITHUB_OUTPUT"
           
       - name: Upload disk images and Checksum to Job Artifacts
         if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'
