@@ -90,6 +90,14 @@ jobs:
           set -euo pipefail
           sudo rm -rf ./output
           mkdir -p ./output
+          tmpdir="${GITHUB_WORKSPACE}/.tmp"
+          sudo rm -rf "${tmpdir}"
+          sudo mkdir -p "${tmpdir}"
+          sudo mount --bind "${tmpdir}" /var/tmp
+          sudo chmod 1777 /var/tmp
+          export TMPDIR=/var/tmp
+          export CONTAINERS_STORAGE_TMPDIR=/var/tmp
+          export BUILDAH_TMPDIR=/var/tmp
           containers_conf="${GITHUB_WORKSPACE}/containers.conf"
           graphroot="${GITHUB_WORKSPACE}/.containers/storage"
           sudo rm -rf /var/lib/containers/storage
