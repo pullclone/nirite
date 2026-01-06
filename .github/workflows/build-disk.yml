@@ -95,8 +95,9 @@ jobs:
           graphroot="${GITHUB_WORKSPACE}/.containers/storage"
           containers_conf="${GITHUB_WORKSPACE}/containers.conf"
           run_libpod_dir="${GITHUB_WORKSPACE}/.run/libpod"
-          sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}"
-          sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}"
+          run_containers_storage_dir="${GITHUB_WORKSPACE}/.run/containers/storage"
+          sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}"
+          sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}"
           sudo umount /var/lib/containers/storage || true
           sudo rm -rf /var/lib/containers/storage
           sudo mkdir -p /var/lib/containers/storage
@@ -121,6 +122,7 @@ jobs:
             --volume "${osbuild_dir}:/run/osbuild" \
             --volume "${var_tmp_dir}:/var/tmp" \
             --volume "${run_libpod_dir}:/run/libpod" \
+            --volume "${run_containers_storage_dir}:/run/containers/storage" \
             --volume ./output:/output \
             --volume "${config_file}:/config.toml:ro" \
             --volume "${containers_conf}:/etc/containers/containers.conf:ro" \
