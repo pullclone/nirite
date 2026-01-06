@@ -32,6 +32,7 @@ dnf5 -y install \
     niri \
     kitty \
     gdm \
+    bluez \
     brightnessctl \
     cava \
     wlsunset \
@@ -45,6 +46,7 @@ dnf5 -y install \
     uv \
     evolution-data-server \
     gnome-keyring \
+    gnupg2 \
     noctalia-shell \
     docker-buildkit \
     docker-distribution \
@@ -69,6 +71,31 @@ dnf5 -y install \
     fuzzel \
     polkit-kde \
     xwayland-satellite
+
+# -------------------------------
+# 2.1 Ensure manpages for unit docs
+# -------------------------------
+if [ ! -f /usr/share/man/man1/mpris-proxy.1 ] && [ ! -f /usr/share/man/man1/mpris-proxy.1.gz ]; then
+  install -d /usr/share/man/man1
+  cat > /usr/share/man/man1/mpris-proxy.1 <<'EOF'
+.TH MPRIS-PROXY 1 "Local" "nirite" "User Commands"
+.SH NAME
+mpris-proxy \- Bluetooth MPRIS proxy helper
+.SH DESCRIPTION
+Stub manual page installed by the image build to satisfy systemd unit documentation checks.
+EOF
+fi
+
+if [ ! -f /usr/share/man/man8/keyboxd.8 ] && [ ! -f /usr/share/man/man8/keyboxd.8.gz ]; then
+  install -d /usr/share/man/man8
+  cat > /usr/share/man/man8/keyboxd.8 <<'EOF'
+.TH KEYBOXD 8 "Local" "nirite" "System Administration"
+.SH NAME
+keyboxd \- GnuPG keybox daemon
+.SH DESCRIPTION
+Stub manual page installed by the image build to satisfy systemd unit documentation checks.
+EOF
+fi
 
 # -------------------------------
 # 3. Enable system services
