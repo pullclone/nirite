@@ -97,11 +97,11 @@ jobs:
           sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}"
           sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}"
           cat > "${storage_conf}" <<EOF
-[storage]
-driver = "overlay"
-runroot = "/run/containers/storage"
-graphroot = "${graphroot}"
-EOF
+          [storage]
+          driver = "overlay"
+          runroot = "/run/containers/storage"
+          graphroot = "${graphroot}"
+          EOF
 
           config_file="./disk_config/disk.toml"
           extra_args="--use-librepo=True --rootfs btrfs"
