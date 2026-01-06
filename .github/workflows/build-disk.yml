@@ -91,8 +91,12 @@ jobs:
           sudo rm -rf ./output
           mkdir -p ./output
           containers_conf="${GITHUB_WORKSPACE}/containers.conf"
+          graphroot="${GITHUB_WORKSPACE}/.containers/storage"
           sudo rm -rf /var/lib/containers/storage
           sudo mkdir -p /var/lib/containers/storage
+          sudo rm -rf "${graphroot}"
+          sudo mkdir -p "${graphroot}"
+          sudo mount --bind "${graphroot}" /var/lib/containers/storage
           cat > "${containers_conf}" <<EOF
           [engine]
           events_logger = "none"
