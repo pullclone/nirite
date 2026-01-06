@@ -148,6 +148,8 @@ jobs:
               set -euo pipefail
               mkdir -p /run/mount
               touch /run/mount/utab
+              mkdir -p /tmp
+              chmod 1777 /tmp
               touch /var/log/hawkey.log
               exec ${builder_cmd}
             "
