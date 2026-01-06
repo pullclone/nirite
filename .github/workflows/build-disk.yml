@@ -93,15 +93,12 @@ jobs:
           osbuild_dir="${GITHUB_WORKSPACE}/.osbuild"
           var_tmp_dir="${GITHUB_WORKSPACE}/.var_tmp"
           graphroot="${GITHUB_WORKSPACE}/.containers/storage"
-          storage_conf="${GITHUB_WORKSPACE}/containers-storage.conf"
           sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}"
           sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}"
-          cat > "${storage_conf}" <<EOF
-          [storage]
-          driver = "overlay"
-          runroot = "/run/containers/storage"
-          graphroot = "${graphroot}"
-          EOF
+          sudo umount /var/lib/containers/storage || true
+          sudo rm -rf /var/lib/containers/storage
+          sudo mkdir -p /var/lib/containers/storage
+          sudo mount --bind "${graphroot}" /var/lib/containers/storage
 
           config_file="./disk_config/disk.toml"
           extra_args="--use-librepo=True --rootfs btrfs"
@@ -109,11 +106,9 @@ jobs:
             config_file="./disk_config/iso.toml"
           fi
 
-          sudo env CONTAINERS_STORAGE_CONF="${storage_conf}" \
-            podman pull "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
+          sudo podman pull "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
 
-          sudo env CONTAINERS_STORAGE_CONF="${storage_conf}" \
-            podman run --rm --privileged \
+          sudo podman run --rm --privileged \
             --security-opt label=type:unconfined_t \
             --volume "${graphroot}:/var/lib/containers/storage" \
             --volume "${osbuild_dir}:/run/osbuild" \
