@@ -51,6 +51,9 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
       cp -a "${EFIROOT}/EFI/BOOT/BOOTX64.EFI" /boot/efi/EFI/BOOT/BOOTX64.EFI 2>/dev/null || true; \
     fi; \
     \
+    # Ensure osbuild detects the UEFI vendor (for ISO builds)
+    mkdir -p /usr/lib/efi/shim/fedora/EFI/fedora || true; \
+    \
     # Fix for bootc-image-builder: Populate EFI vendor directory so the builder detects 'fedora'
     mkdir -p /boot/efi/EFI/fedora || true; \
     cp /usr/share/shim/*/shimx64.efi /boot/efi/EFI/fedora/ 2>/dev/null || true; \
