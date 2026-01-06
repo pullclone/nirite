@@ -98,6 +98,8 @@ jobs:
             config_file="./disk_config/iso.toml"
           fi
 
+          sudo podman pull "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
+
           sudo podman run --rm --privileged \
             --security-opt label=type:unconfined_t \
             --volume /var/lib/containers/storage:/var/lib/containers/storage \
