@@ -47,6 +47,7 @@ dnf5 -y install \
     evolution-data-server \
     gnome-keyring \
     gnupg2 \
+    gnupg2-keyboxd \
     noctalia-shell \
     docker-buildkit \
     docker-distribution \
@@ -95,6 +96,20 @@ keyboxd \- GnuPG keybox daemon
 .SH DESCRIPTION
 Stub manual page installed by the image build to satisfy systemd unit documentation checks.
 EOF
+fi
+
+# Ensure keyboxd path matches unit expectations
+if [ ! -e /usr/lib/gnupg/keyboxd ]; then
+  if [ -x /usr/libexec/keyboxd ]; then
+    install -d /usr/lib/gnupg
+    ln -s /usr/libexec/keyboxd /usr/lib/gnupg/keyboxd
+  elif [ -x /usr/libexec/gnupg/keyboxd ]; then
+    install -d /usr/lib/gnupg
+    ln -s /usr/libexec/gnupg/keyboxd /usr/lib/gnupg/keyboxd
+  fi
+fi
+if [ -e /usr/lib/gnupg/keyboxd ] && [ ! -x /usr/lib/gnupg/keyboxd ]; then
+  chmod +x /usr/lib/gnupg/keyboxd
 fi
 
 # -------------------------------
