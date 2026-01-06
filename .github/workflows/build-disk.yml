@@ -97,10 +97,14 @@ jobs:
           run_libpod_dir="${GITHUB_WORKSPACE}/.run/libpod"
           run_containers_storage_dir="${GITHUB_WORKSPACE}/.run/containers/storage"
           run_crun_dir="${GITHUB_WORKSPACE}/.run/crun"
+          var_log_dir="${GITHUB_WORKSPACE}/.var_log"
           osbuild_store_dir="${GITHUB_WORKSPACE}/.osbuild-store"
           osbuild_rpmmd_dir="${GITHUB_WORKSPACE}/.osbuild-rpmmd"
-          sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
-          sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
+          sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${var_log_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
+          sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${var_log_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
+          sudo touch "${var_log_dir}/hawkey.log"
+          sudo chmod 777 "${var_log_dir}"
+          sudo chmod 666 "${var_log_dir}/hawkey.log"
           sudo umount /var/lib/containers/storage || true
           sudo rm -rf /var/lib/containers/storage
           sudo mkdir -p /var/lib/containers/storage
@@ -115,6 +119,12 @@ jobs:
           if [[ "${{ matrix.disk-type }}" == "anaconda-iso" ]]; then
             config_file="./disk_config/iso.toml"
           fi
+          builder_args=(/usr/bin/bootc-image-builder build --output /output --chown "${{ env.USER_UID }}:${{ env.USER_GID }}")
+          if [[ -n "${extra_args}" ]]; then
+            builder_args+=(${extra_args})
+          fi
+          builder_args+=(--type "${{ matrix.disk-type }}" "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}")
+          printf -v builder_cmd '%q ' "${builder_args[@]}"
 
           sudo CONTAINERS_CONF="${containers_conf}" \
             podman pull "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
@@ -127,17 +137,20 @@ jobs:
             --volume "${run_libpod_dir}:/run/libpod" \
             --volume "${run_containers_storage_dir}:/run/containers/storage" \
             --volume "${run_crun_dir}:/run/crun" \
+            --volume "${var_log_dir}:/var/log" \
             --volume "${osbuild_store_dir}:/store" \
             --volume "${osbuild_rpmmd_dir}:/rpmmd" \
             --volume ./output:/output \
             --volume "${config_file}:/config.toml:ro" \
             --volume "${containers_conf}:/etc/containers/containers.conf:ro" \
-            quay.io/centos-bootc/bootc-image-builder:latest build \
-            --output /output \
-            --chown "${{ env.USER_UID }}:${{ env.USER_GID }}" \
-            ${extra_args} \
-            --type "${{ matrix.disk-type }}" \
-            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
+            --entrypoint /bin/sh \
+            quay.io/centos-bootc/bootc-image-builder:latest -c "
+              set -euo pipefail
+              mkdir -p /run/mount
+              touch /run/mount/utab
+              touch /var/log/hawkey.log
+              exec ${builder_cmd}
+            "
 
           echo "output-directory=$(pwd)/output" >> "$GITHUB_OUTPUT"
           
