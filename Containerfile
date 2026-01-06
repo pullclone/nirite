@@ -53,6 +53,9 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     \
     # Ensure osbuild detects the UEFI vendor (for ISO builds)
     mkdir -p /usr/lib/efi/shim/fedora/EFI/fedora || true; \
+    printf '%s\n' fedora > /usr/lib/efi/shim/fedora/EFI/fedora/.vendor 2>/dev/null || true; \
+    mkdir -p /usr/lib/bootupd/updates/EFI/fedora || true; \
+    printf '%s\n' fedora > /usr/lib/bootupd/updates/EFI/fedora/.vendor 2>/dev/null || true; \
     \
     # Fix for bootc-image-builder: Populate EFI vendor directory so the builder detects 'fedora'
     mkdir -p /boot/efi/EFI/fedora || true; \
