@@ -90,26 +90,9 @@ jobs:
           set -euo pipefail
           sudo rm -rf ./output
           mkdir -p ./output
-          osbuild_dir="${GITHUB_WORKSPACE}/.osbuild"
-          var_tmp_dir="${GITHUB_WORKSPACE}/.var_tmp"
-          graphroot="${GITHUB_WORKSPACE}/.containers/storage"
           containers_conf="${GITHUB_WORKSPACE}/containers.conf"
-          run_libpod_dir="${GITHUB_WORKSPACE}/.run/libpod"
-          run_containers_storage_dir="${GITHUB_WORKSPACE}/.run/containers/storage"
-          run_crun_dir="${GITHUB_WORKSPACE}/.run/crun"
-          var_log_dir="${GITHUB_WORKSPACE}/.var_log"
-          osbuild_store_dir="${GITHUB_WORKSPACE}/.osbuild-store"
-          osbuild_rpmmd_dir="${GITHUB_WORKSPACE}/.osbuild-rpmmd"
-          sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${var_log_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
-          sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${var_log_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
-          sudo chmod 1777 "${var_tmp_dir}"
-          sudo touch "${var_log_dir}/hawkey.log"
-          sudo chmod 777 "${var_log_dir}"
-          sudo chmod 666 "${var_log_dir}/hawkey.log"
-          sudo umount /var/lib/containers/storage || true
           sudo rm -rf /var/lib/containers/storage
           sudo mkdir -p /var/lib/containers/storage
-          sudo mount --bind "${graphroot}" /var/lib/containers/storage
           cat > "${containers_conf}" <<EOF
           [engine]
           events_logger = "none"
@@ -131,28 +114,16 @@ jobs:
             podman pull "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
 
           sudo podman run --rm --privileged \
+            --pull=newer \
+            --net=host \
             --security-opt label=type:unconfined_t \
-            --volume "${graphroot}:/var/lib/containers/storage" \
-            --volume "${osbuild_dir}:/run/osbuild" \
-            --volume "${var_tmp_dir}:/var/tmp" \
-            --volume "${var_tmp_dir}:/tmp" \
-            --volume "${run_libpod_dir}:/run/libpod" \
-            --volume "${run_containers_storage_dir}:/run/containers/storage" \
-            --volume "${run_crun_dir}:/run/crun" \
-            --volume "${var_log_dir}:/var/log" \
-            --volume "${osbuild_store_dir}:/store" \
-            --volume "${osbuild_rpmmd_dir}:/rpmmd" \
+            --volume /var/lib/containers/storage:/var/lib/containers/storage \
             --volume ./output:/output \
             --volume "${config_file}:/config.toml:ro" \
             --volume "${containers_conf}:/etc/containers/containers.conf:ro" \
             --entrypoint /bin/sh \
             quay.io/centos-bootc/bootc-image-builder:latest -c "
               set -euo pipefail
-              mkdir -p /run/mount
-              touch /run/mount/utab
-              mkdir -p /tmp
-              chmod 1777 /tmp
-              touch /var/log/hawkey.log
               exec ${builder_cmd}
             "
 
