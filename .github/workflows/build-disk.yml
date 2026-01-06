@@ -97,8 +97,10 @@ jobs:
           run_libpod_dir="${GITHUB_WORKSPACE}/.run/libpod"
           run_containers_storage_dir="${GITHUB_WORKSPACE}/.run/containers/storage"
           run_crun_dir="${GITHUB_WORKSPACE}/.run/crun"
-          sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}"
-          sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}"
+          osbuild_store_dir="${GITHUB_WORKSPACE}/.osbuild-store"
+          osbuild_rpmmd_dir="${GITHUB_WORKSPACE}/.osbuild-rpmmd"
+          sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
+          sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
           sudo umount /var/lib/containers/storage || true
           sudo rm -rf /var/lib/containers/storage
           sudo mkdir -p /var/lib/containers/storage
@@ -125,6 +127,8 @@ jobs:
             --volume "${run_libpod_dir}:/run/libpod" \
             --volume "${run_containers_storage_dir}:/run/containers/storage" \
             --volume "${run_crun_dir}:/run/crun" \
+            --volume "${osbuild_store_dir}:/store" \
+            --volume "${osbuild_rpmmd_dir}:/rpmmd" \
             --volume ./output:/output \
             --volume "${config_file}:/config.toml:ro" \
             --volume "${containers_conf}:/etc/containers/containers.conf:ro" \
