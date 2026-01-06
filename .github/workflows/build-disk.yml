@@ -102,6 +102,7 @@ jobs:
           osbuild_rpmmd_dir="${GITHUB_WORKSPACE}/.osbuild-rpmmd"
           sudo rm -rf "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${var_log_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
           sudo mkdir -p "${osbuild_dir}" "${var_tmp_dir}" "${graphroot}" "${run_libpod_dir}" "${run_containers_storage_dir}" "${run_crun_dir}" "${var_log_dir}" "${osbuild_store_dir}" "${osbuild_rpmmd_dir}"
+          sudo chmod 1777 "${var_tmp_dir}"
           sudo touch "${var_log_dir}/hawkey.log"
           sudo chmod 777 "${var_log_dir}"
           sudo chmod 666 "${var_log_dir}/hawkey.log"
@@ -134,6 +135,7 @@ jobs:
             --volume "${graphroot}:/var/lib/containers/storage" \
             --volume "${osbuild_dir}:/run/osbuild" \
             --volume "${var_tmp_dir}:/var/tmp" \
+            --volume "${var_tmp_dir}:/tmp" \
             --volume "${run_libpod_dir}:/run/libpod" \
             --volume "${run_containers_storage_dir}:/run/containers/storage" \
             --volume "${run_crun_dir}:/run/crun" \
