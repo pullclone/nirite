@@ -16,7 +16,7 @@ The image includes the Bazzite and Bazzite‑DX defaults along with extra packag
     
 -   **Audio & media**: `cava` terminal audio visualiser, `evolution-data-server` for GNOME Online Accounts.
     
--   **Shell & terminals**: `kitty` terminal emulator, `tmux` multiplexer, `micro` and `emacs` editors, `typespeed` typing game, and `astroterm`.
+-   **Shell & terminals**: `kitty` terminal emulator, `tmux` multiplexer, `micro` and `emacs` editors, and `typespeed` to practice typing.
     
 -   **CLI enhancers**: `starship` prompt, `zoxide` (fast directory jumper), `navi` (cheat‑sheet tool), `glow` (Markdown previewer), `btop` system monitor, `age` encryption tool, `eza` (modern `ls` replacement) and `trash-cli`.
     
