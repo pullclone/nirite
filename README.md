@@ -59,7 +59,9 @@ The repository is organised to make contributions safe and predictable:
 To build Nirite locally you’ll need Podman, Bootc Image Builder and the `just` command. Clone this repository, then run:
 
 `just build          # build the container and produce an OCI image`
+
 `just run            # boot the image in a VM (requires QEMU)`
+
 `just test           # run runtime assertions`
 
 To produce a bootable raw or ISO image, pass `type=raw` or `type=iso` to the `build` recipe. Bootc Image Builder will use the `disk_config` TOML files to partition the disk and produce a bootable artefact.
