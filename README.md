@@ -1,6 +1,6 @@
 # Nirite
 
-Nirite is a containerised desktop image built on top of [Bazzite](https://bazzite.gg/) and the developer‑focused [Bazzite‑DX](https://dev.bazzite.gg/). Bazzite provides a Fedora Atomic base with image‑based updates, pre‑installed gaming tools and drivers, while Bazzite‑DX layers in developer tooling such as container runtimes, devcontainers and a rich CLI environment. Nirite extends this foundation with a modern Wayland desktop stack centred around the [niri](https://github.com/YaLTeR/niri) compositor, the [Noctalia shell](https://noctalia.dev/) and the fuzzel launcher. The goal of this project is to remain as close as possible to upstream Bazzite while shipping a cohesive Niri‑powered desktop experience.
+Nirite is a containerised desktop image built on top of [Bazzite](https://bazzite.gg/) and the developer‑focused [Bazzite‑DX](https://dev.bazzite.gg/). Bazzite provides a Fedora Atomic base with image‑based updates, pre‑installed gaming tools and drivers, while Bazzite‑DX layers in developer tooling such as container runtimes, devcontainers and a rich CLI environment. Nirite extends this foundation with a modern Wayland desktop stack centered around the [niri](https://github.com/YaLTeR/niri) compositor, the [Noctalia shell](https://noctalia.dev/) and the fuzzel launcher. The goal of this project is to remain as close as possible to upstream Bazzite while shipping a cohesive Niri‑powered desktop experience.
 
 ## Why Niri + Noctalia?
 
